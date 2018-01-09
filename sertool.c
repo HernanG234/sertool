@@ -250,7 +250,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (arguments.data_bits < 1 || arguments.data_bits > 64) {
+	if (arguments.data_bits < 5 || arguments.data_bits > 8) {
 		printf("%d not a valid amount of data_bits. Must be between 1 and 64\n",
 		       arguments.data_bits);
 		exit(1);
