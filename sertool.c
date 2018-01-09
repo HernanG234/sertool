@@ -94,9 +94,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 	case 'c': arguments->mode = SERIAL_CLEAR; break;
 	case 'b': arguments->baud_rate = strtol(arg, NULL, 10);
 		  arguments->flags |= SERIAL_PARAMS_BAUDRATE; break;
-	case 'd': arguments->data_bits =  strtol(arg, NULL, 10);
+	case 'd': arguments->data_bits = strtol(arg, NULL, 10);
 		  arguments->flags |= SERIAL_PARAMS_DATABITS; break;
-	case 'o': arguments->stop_bits =  strtol(arg, NULL, 10);
+	case 'o': arguments->stop_bits = strtol(arg, NULL, 10);
 		  arguments->flags |= SERIAL_PARAMS_STOPBITS; break;
 	case 'p': arguments->parity = *arg;
 		  arguments->flags |= SERIAL_PARAMS_PARITY; break;
@@ -112,7 +112,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 		  break;
 	case ARGP_KEY_END:
 		  if (state->arg_num < 1)
-			  argp_usage (state);
+			  argp_usage(state);
 		  break;
 	default: return ARGP_ERR_UNKNOWN;
 	}
@@ -178,17 +178,20 @@ static void print_get(struct serial_params params)
 static void serial_set(int fd, struct serial_params *params)
 {
 	print_set(*params);
+	/* TODO: check return value */
 	ioctl(fd, SERIAL_SET_PARAMS, params);
 }
 
 static void serial_get(int fd, struct serial_params *params)
 {
+	/* TODO: check return value */
 	ioctl(fd, SERIAL_GET_PARAMS, params);
 	print_get(*params);
 }
 
 static void serial_rx_buff_clear(int fd)
 {
+	/* TODO: check return value */
 	ioctl(fd, SERIAL_RX_BUFFER_CLEAR);
 	printf("RX buffer cleared.\n");
 }
@@ -225,19 +228,19 @@ int main(int argc, char *argv[])
 	}
 
 	if (!S_ISCHR(dev_stat.st_mode)) {
-		printf ("%s is not a character device/n", arguments.device);
+		printf("%s is not a character device/n", arguments.device);
 		exit(1);
 	}
 
 	if (arguments.rcv_timeout < 0 || arguments.rcv_timeout > 300000) {
-		printf ("%d bytes: not a valid timeout (0 < rcv_timeout <= 30000)\n",
-			arguments.rcv_timeout);
+		printf("%d bytes: not a valid timeout (0 < rcv_timeout <= 30000)\n",
+		       arguments.rcv_timeout);
 		exit(1);
 	}
 
 	if (arguments.xmit_timeout < 0 || arguments.xmit_timeout > 300000) {
-		printf ("%d bytes: not a valid timeout (0 < xmit_timeout <= 30000)\n",
-			arguments.xmit_timeout);
+		printf("%d bytes: not a valid timeout (0 < xmit_timeout <= 30000)\n",
+		       arguments.xmit_timeout);
 		exit(1);
 	}
 
@@ -260,8 +263,8 @@ int main(int argc, char *argv[])
 	}
 
 	if (arguments.parity != 'n' && arguments.parity != 'e' && arguments.parity != 'o') {
-			  printf("Parity must be n (no parity), e (even) or o (odd)");
-			  exit(1);
+		printf("Parity must be n (no parity), e (even) or o (odd)");
+		exit(1);
 	}
 
 	/* Default params */
@@ -285,12 +288,17 @@ int main(int argc, char *argv[])
 	params.tx_gran = 0;
 
 	switch (arguments.mode) {
-	case SERIAL_SET: printf("Going to SET:\n");
-			 serial_set(fd, &params); break;
-	case SERIAL_GET: printf("GOT:\n");
-			 serial_get(fd, &params); break;
+	case SERIAL_SET:
+		printf("Going to SET:\n");
+		serial_set(fd, &params);
+		break;
+	case SERIAL_GET:
+		printf("GOT:\n");
+		serial_get(fd, &params);
+		break;
 	case SERIAL_CLEAR:
-			 serial_rx_buff_clear(fd); break;
+		serial_rx_buff_clear(fd);
+		break;
 	default:
 		printf("oops, unknown mode (%d). something is wrong!\n", arguments.mode);
 		exit(1);
