@@ -11,6 +11,7 @@ The tool can:
 1. Set parameters
 2. Get parameters
 3. Clear the rx software fifo
+4. Send and rcv msgs through ioctl (instead of standard read(), write())
 
 ### Installation
 
@@ -23,7 +24,12 @@ Arguments:
 ```
 -s | --set -> set parameters
 -g | --get -> get parameters
--c | --rx-buf-clear-> clear rx sw fifo
+-c | --rx-buf-clear -> clear rx sw fifo
+-n | --send-msg -> send-msg through ioctl
+-v | --rcv-msg -> rcv-msg thourgh ioctl
+
+When sending a msg, specify the msg to send.
+When receiving a msg, specify the amount of bytes to rcv.
 
 When -s is set, user has to define what to set:
 -b | --baudrate -> set baudrate
@@ -38,15 +44,23 @@ When -s is set, user has to define what to set:
 
 Set baudrate:
 
-	> #./sertool -s --baudrate 115200 /dev/serial0
+	> #sertool -s --baudrate 115200 /dev/serial0
 
 Get parameters:
 
-	> #./sertool -g /dev/serial0
+	> #sertool -g /dev/serial0
 
 Clear rx software fifo:
 
-	> #./sertool -c /dev/serial0
+	> #sertool -c /dev/serial0
+
+Send msg:
+
+	> #sertool --send-msg Thisisamsg /dev/serial0
+
+Receive msg (receive 8 bytes):
+
+	> #sertool --rcv-msg 8 /dev/serial0
 
 ### TO DO
 
