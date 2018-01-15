@@ -31,11 +31,18 @@ struct serial_params {
 	__u8 tx_gran;
 };
 
+struct ioc_msg {
+	__u16 flags;
+	__u16 count;
+	char *buf;
+};
+
 #define SERIAL_IOC_MAGIC	'h'
 #define SERIAL_GET_PARAMS	_IOR(SERIAL_IOC_MAGIC, 1, struct serial_params)
 #define SERIAL_SET_PARAMS	_IOW(SERIAL_IOC_MAGIC, 2, struct serial_params)
 #define SERIAL_RX_BUFFER_CLEAR  _IO(SERIAL_IOC_MAGIC, 3)
-#define SERIAL_WRITE_IOC	_IOW(SERIAL_IOC_MAGIC, 4, char *)
+#define SERIAL_READ_IOC		_IOWR(SERIAL_IOC_MAGIC, 4, struct ioc_msg)
+#define SERIAL_WRITE_IOC	_IOWR(SERIAL_IOC_MAGIC, 5, struct ioc_msg)
 
 /* params flags */
 #define BIT(nr)			(1UL << (nr))
@@ -54,7 +61,7 @@ enum msg_types {
 	MSG_TYPES
 };
 
-const char *argp_program_version = "sertool 0.1.0";
+const char *argp_program_version = "sertool 1.1.0";
 const char *argp_program_bug_address = "<hernan@vanguardiasur.com.ar>";
 static char doc[] = "Tool for /dev/serial.";
 static char args_doc[] = "-s|g --param DEVICE";
@@ -62,7 +69,10 @@ static char args_doc[] = "-s|g --param DEVICE";
 static struct argp_option options[] = {
 	{ "set", 's', 0, 0, "Set Params"},
 	{ "get", 'g', 0, 0, "Get Params"},
+	{ "send-msg", 'n', "message", 0, "Send Message"},
+	{ "rcv-msg", 'v', "length", 0, "Receive Message - bytes to rcv"},
 	{ "rx-buff-clear", 'c', 0, 0, "Clear FIFOs"},
+	{ "wait-xmit", 'w', 0, 0, "Wait for xmit to finish"},
 	{ "baudrate", 'b', "baudrate", 0, "Set baudrate"},
 	{ "data-bits", 'd', "databits", 0, "Set data bits"},
 	{ "parity", 'p', "parity", 0, "Set parity"},
@@ -74,7 +84,8 @@ static struct argp_option options[] = {
 };
 
 struct arguments {
-	enum { SERIAL_SET, SERIAL_GET, SERIAL_CLEAR } mode;
+	enum { SERIAL_SET, SERIAL_GET, SERIAL_CLEAR, SERIAL_SEND_MSG,
+		SERIAL_RCV_MSG } mode;
 	int flags;
 	int baud_rate;
 	int data_bits;
@@ -82,8 +93,10 @@ struct arguments {
 	int stop_bits;
 	int rcv_timeout;
 	int xmit_timeout;
+	int length;
 	bool fifoclear;
 	char device[64];
+	char *msg;
 };
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
@@ -92,6 +105,11 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 	case 's': arguments->mode = SERIAL_SET; break;
 	case 'g': arguments->mode = SERIAL_GET; break;
 	case 'c': arguments->mode = SERIAL_CLEAR; break;
+	case 'n': arguments->mode = SERIAL_SEND_MSG;
+		  arguments->msg = arg;
+		  arguments->length = strlen(arg) + 1; break;
+	case 'v': arguments->mode = SERIAL_RCV_MSG;
+		  arguments->length = strtol(arg, NULL, 10); break;
 	case 'b': arguments->baud_rate = strtol(arg, NULL, 10);
 		  arguments->flags |= SERIAL_PARAMS_BAUDRATE; break;
 	case 'd': arguments->data_bits = strtol(arg, NULL, 10);
@@ -102,8 +120,10 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 		  arguments->flags |= SERIAL_PARAMS_PARITY; break;
 	case 'r': arguments->rcv_timeout = strtol(arg, NULL, 10);
 		  arguments->flags |= SERIAL_PARAMS_RCV_TIMEOUT; break;
-	case 'x': arguments->xmit_timeout =  strtol(arg, NULL, 10);
+	case 'x': arguments->xmit_timeout = strtol(arg, NULL, 10);
 		  arguments->flags |= SERIAL_PARAMS_XMIT_TIMEOUT; break;
+	case 'w': arguments->flags |= SERIAL_WAIT_FOR_XMIT; break;
+
 	case ARGP_KEY_ARG:
 		  if (state->arg_num >= 1) {
 			  argp_usage(state);
@@ -177,29 +197,74 @@ static void print_get(struct serial_params params)
 
 static void serial_set(int fd, struct serial_params *params)
 {
+	int ret;
+
 	print_set(*params);
-	/* TODO: check return value */
-	ioctl(fd, SERIAL_SET_PARAMS, params);
+	ret = ioctl(fd, SERIAL_SET_PARAMS, params);
+	if (ret < 0) {
+		perror("serial_set error: ");
+		exit(1);
+	}
 }
 
 static void serial_get(int fd, struct serial_params *params)
 {
-	/* TODO: check return value */
-	ioctl(fd, SERIAL_GET_PARAMS, params);
+	int ret;
+
+	ret = ioctl(fd, SERIAL_GET_PARAMS, params);
+	if (ret < 0) {
+		perror("serial_get error: ");
+		exit(1);
+	}
 	print_get(*params);
 }
 
 static void serial_rx_buff_clear(int fd)
 {
-	/* TODO: check return value */
-	ioctl(fd, SERIAL_RX_BUFFER_CLEAR);
+	int ret;
+
+	ret = ioctl(fd, SERIAL_RX_BUFFER_CLEAR);
+	if (ret < 0) {
+		perror("rx_buff_clear error: ");
+		exit(1);
+	}
 	printf("RX buffer cleared.\n");
 }
+
+static void serial_send_msg(int fd, struct ioc_msg *msg)
+{
+	int ret;
+
+	ret = ioctl(fd, SERIAL_WRITE_IOC, msg);
+	printf("Bytes written: %u\n", ret);
+	if (ret < 0) {
+		perror("write_ioc error: ");
+		exit(1);
+	}
+}
+
+static void serial_rcv_msg(int fd, struct ioc_msg *msg)
+{
+	int ret;
+
+	ret = ioctl(fd, SERIAL_READ_IOC, msg);
+	if (ret < 0 && errno != ETIMEDOUT) {
+		perror("read_ioc error: ");
+		exit(1);
+	}
+
+	printf("This was read: %.*s\n", strlen(msg->buf), msg->buf);
+	if (errno == ETIMEDOUT)
+		printf("%d bytes missing\n",
+		       (msg->count - (strlen(msg->buf)+1)));
+}
+
 int main(int argc, char *argv[])
 {
 	struct arguments arguments;
 	struct serial_params params;
 	struct stat dev_stat;
+	struct ioc_msg msg;
 	int fd, ret;
 
 	/* Default options */
@@ -211,6 +276,8 @@ int main(int argc, char *argv[])
 	arguments.rcv_timeout = 10000;
 	arguments.xmit_timeout = 10000;
 	arguments.fifoclear = false;
+	arguments.length = 0;
+	arguments.msg = NULL;
 
 	/* Add arguments to client mode to stop after i) N bytes or ii) M seconds. */
 	argp_parse(&argp, argc, argv, 0, 0, &arguments);
@@ -287,6 +354,10 @@ int main(int argc, char *argv[])
 	params.rx_gran = 0;
 	params.tx_gran = 0;
 
+	msg.flags = arguments.flags;
+	msg.count = arguments.length;
+	msg.buf = arguments.msg;
+
 	switch (arguments.mode) {
 	case SERIAL_SET:
 		printf("Going to SET:\n");
@@ -298,6 +369,14 @@ int main(int argc, char *argv[])
 		break;
 	case SERIAL_CLEAR:
 		serial_rx_buff_clear(fd);
+		break;
+	case SERIAL_SEND_MSG:
+		serial_send_msg(fd, &msg);
+		break;
+	case SERIAL_RCV_MSG:
+		msg.buf = malloc(msg.count);
+		serial_rcv_msg(fd, &msg);
+		free(msg.buf);
 		break;
 	default:
 		printf("oops, unknown mode (%d). something is wrong!\n", arguments.mode);
