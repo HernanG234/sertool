@@ -61,7 +61,7 @@ enum msg_types {
 	MSG_TYPES
 };
 
-const char *argp_program_version = "sertool 1.1.0";
+const char *argp_program_version = "sertool 2.0.0";
 const char *argp_program_bug_address = "<hernan@vanguardiasur.com.ar>";
 static char doc[] = "Tool for /dev/serial.";
 static char args_doc[] = "-s|g --param DEVICE";
