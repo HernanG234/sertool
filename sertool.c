@@ -253,9 +253,9 @@ static void serial_rcv_msg(int fd, struct ioc_msg *msg)
 		exit(1);
 	}
 
-	printf("This was read: %.*s\n", strlen(msg->buf), msg->buf);
+	printf("This was read: %.*s\n", (int) strlen(msg->buf), msg->buf);
 	if (errno == ETIMEDOUT)
-		printf("%d bytes missing\n",
+		printf("%zu bytes missing\n",
 		       (msg->count - (strlen(msg->buf)+1)));
 }
 
