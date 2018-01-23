@@ -1,4 +1,4 @@
-## Serperf serial device test tool
+## Sertool - serial device configure tool
 
 [![Build Status](https://travis-ci.org/HernanG234/sertool.svg?branch=master)](https://travis-ci.org/HernanG234/sertool#)
 
@@ -15,7 +15,7 @@ The tool can:
 
 ### Installation
 
-Clone from [here](https://github.com/HernanG234/sertool). Run make.
+Clone from [here](https://github.com/vanguardiasur/sertool). Run make.
 
 ### Usage
 
